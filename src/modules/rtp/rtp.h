@@ -30,6 +30,8 @@ typedef struct pa_rtp_context {
     int fd;
     uint16_t sequence;
     uint32_t timestamp;
+    uint32_t prev_timestamp;
+    uint32_t offset;
     uint32_t ssrc;
     uint8_t payload;
     size_t frame_size;

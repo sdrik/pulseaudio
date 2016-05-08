@@ -154,6 +154,8 @@ pa_rtp_context* pa_rtp_context_init_recv(pa_rtp_context *c, int fd, size_t frame
 
     c->fd = fd;
     c->frame_size = frame_size;
+    c->prev_timestamp = 0;
+    c->offset = 0;
 
     pa_memchunk_reset(&c->memchunk);
     return c;
@@ -307,6 +309,14 @@ int pa_rtp_recv(pa_rtp_context *c, pa_memchunk *chunk, pa_mempool *pool, struct 
         pa_log_warn("Couldn't find SCM_TIMESTAMP data in auxiliary recvmsg() data!");
         pa_zero(*tstamp);
     }
+
+    if (c->timestamp == c->prev_timestamp) {
+        c->timestamp += c->offset;
+    } else {
+        c->prev_timestamp = c->timestamp;
+        c->offset = 0;
+    }
+    c->offset += (chunk->length / c->frame_size);
 
     return 0;
 
