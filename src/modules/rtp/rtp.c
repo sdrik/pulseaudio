@@ -281,7 +281,7 @@ int pa_rtp_recv(pa_rtp_context *c, pa_memchunk *chunk, pa_mempool *pool, struct 
     }
 
     chunk->index += 12 + cc*4;
-    chunk->length = (size_t) size - 12 + cc*4;
+    chunk->length = (size_t) size - 12 - cc*4;
 
     if (chunk->length % c->frame_size != 0) {
         pa_log_warn("Bad RTP packet size.");
