@@ -64,7 +64,7 @@ char *pa_sdp_build(int af, const void *src, const void *dst, const char *name, u
     pa_assert_se(inet_ntop(af, dst, buf_dst, sizeof(buf_dst)));
 
     return pa_sprintf_malloc(
-            PA_SDP_HEADER
+            PA_SDP_HEADER "\n"
             "o=%s %lu 0 IN %s %s\n"
             "s=%s\n"
             "c=IN %s %s\n"
@@ -133,11 +133,20 @@ pa_sdp_info *pa_sdp_parse(const char *t, pa_sdp_info *i, int is_goodbye) {
     }
 
     t += sizeof(PA_SDP_HEADER)-1;
+    if (*t == '\r')
+        t++;
+    if (*t != '\n') {
+        pa_log("Failed to parse SDP data: invalid header.");
+        goto fail;
+    }
+    t++;
 
     while (*t) {
         size_t l;
 
         l = strcspn(t, "\n");
+	if (t[l-1] == '\r')
+	    l--;
 
         if (l <= 2) {
             pa_log("Failed to parse SDP data: line too short: >%s<.", t);
@@ -234,6 +243,8 @@ pa_sdp_info *pa_sdp_parse(const char *t, pa_sdp_info *i, int is_goodbye) {
 
         t += l;
 
+        if (*t == '\r')
+            t++;
         if (*t == '\n')
             t++;
     }
