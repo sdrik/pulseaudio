@@ -30,6 +30,7 @@
 #include <jack/jack.h>
 
 #include <pulse/xmalloc.h>
+#include <pulse/util.h>
 
 #include <pulsecore/sink.h>
 #include <pulsecore/module.h>
@@ -40,6 +41,7 @@
 #include <pulsecore/thread-mq.h>
 #include <pulsecore/rtpoll.h>
 #include <pulsecore/sample-util.h>
+#include <pulsecore/core-util.h>
 
 #include "module-jack-sink-symdef.h"
 
@@ -290,6 +292,7 @@ int pa__init(pa_module*m) {
     pa_modargs *ma = NULL;
     jack_status_t status;
     const char *server_name, *client_name;
+    char *client_name2 = NULL;
     uint32_t channels = 0;
     bool do_connect = true;
     unsigned i;
@@ -313,7 +316,15 @@ int pa__init(pa_module*m) {
     }
 
     server_name = pa_modargs_get_value(ma, "server_name", NULL);
-    client_name = pa_modargs_get_value(ma, "client_name", "PulseAudio JACK Sink");
+    client_name = pa_modargs_get_value(ma, "client_name", NULL);
+    if (!client_name) {
+        if (getenv("JACK_PROMISCUOUS_SERVER")) {
+            char un[256];
+            pa_get_user_name(un, sizeof(un));
+            client_name = client_name2 = pa_sprintf_malloc("%s's PulseAudio JACK Sink", un);
+        } else
+            client_name = "PulseAudio JACK Sink";
+    }
 
     m->userdata = u = pa_xnew0(struct userdata, 1);
     u->core = m->core;
@@ -335,6 +346,10 @@ int pa__init(pa_module*m) {
     if (!(u->client = jack_client_open(client_name, server_name ? JackServerName : JackNullOption, &status, server_name))) {
         pa_log("jack_client_open() failed.");
         goto fail;
+    }
+    if (client_name2) {
+        pa_xfree(client_name2);
+        client_name2 = NULL;
     }
 
     ports = jack_get_ports(u->client, NULL, JACK_DEFAULT_AUDIO_TYPE, JackPortIsPhysical|JackPortIsInput);
@@ -455,6 +470,9 @@ int pa__init(pa_module*m) {
     return 0;
 
 fail:
+    if (client_name2)
+        pa_xfree(client_name2);
+
     if (ma)
         pa_modargs_free(ma);
 
